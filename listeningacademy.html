@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuralLab - Cambridge Listening</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- ICON COMPONENT (Replaces Lucide-React for HTML Standalone) ---
+    const Icon = ({ name, size = 16, className = "" }) => {
+      return <i className={`fa-solid fa-${name} ${className}`} style={{ fontSize: `${size}px`, width: `${size}px`, textAlign: 'center' }}></i>;
+    };
+
+    /* ================================================================================
+    ATENCIÓN: AQUÍ DEBES PONER LA INFORMACIÓN DE TU AUDIO (INSTRUCCIONES DE LA TAREA)
+    ================================================================================
+    Para cumplir con: "Feed Gemini with the info of questions and the name of your audio"
+    Busca la sección "LISTENING_DATABASE" justo abajo de este comentario.
+    Dentro de "A1", en el primer objeto, cambia los valores por los tuyos:
+
+    1. title: "El título de tu lección"
+    2. audioTitle: "NombreDeTuAudio.mp3" (Este es el que subirás a Github)
+    3. transcript: "Copia y pega aquí todo lo que dice tu audio en inglés"
+    4. Cambia las palabras de "predictionKeywords", "preVocabulary" y las preguntas de "whileQuestions" por las que tú diseñaste.
+    ================================================================================
+    */
+
+    // --- RICH LISTENING DATABASE ---
+    const LISTENING_DATABASE = {
+      A1: [
+        {
+          id: "a1_dog",
+          title: "Daily Life of Toby the Dog", // <-- CAMBIA ESTO POR TU TÍTULO
+          audioTitle: "Toby_Daily_Routine.mp3", // <-- CAMBIA ESTO POR EL NOMBRE DE TU AUDIO (.mp3)
+          transcript: "Hello! This is Toby. Toby is a friendly brown dog. Every morning, Toby wakes up at seven o'clock. He runs in the green garden and eats delicious food. In the afternoon, Toby plays with a small blue ball. He is very happy.", // <-- PEGA AQUÍ TU TRANSCRIPCIÓN
+          duration: "0:25",
+          predictionKeywords: ["Toby", "garden", "seven o'clock", "blue ball", "aeroplane", "cooking", "subway"], // 4 reales, 3 falsas
+          preVocabulary: [
+            // TUS 3 PALABRAS DE VOCABULARIO
+            { word: "Friendly", definition: "Behaving in a pleasant, kind way towards others", matched: false },
+            { word: "Garden", definition: "An outdoor area with grass and plants next to a house", matched: false },
+            { word: "Wakes up", definition: "To stop sleeping and become active", matched: false }
+          ],
+          whileQuestions: [
+            // TUS PREGUNTAS DE OPCIÓN MÚLTIPLE
+            {
+              question: "What color is Toby the dog?",
+              options: ["White", "Black", "Brown"],
+              correct: 2, // El índice de la respuesta correcta (0, 1 o 2)
+              userAnswer: null
+            },
+            {
+              question: "What time does Toby wake up every morning?",
+              options: ["At 6:00 AM", "At 7:00 AM", "At 8:00 AM"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "In the afternoon, Toby plays with a small _____ ball.",
+            correctAnswer: "blue",
+            hint: "A common color representing the sky."
+          },
+          postChronology: [
+            // TUS EVENTOS PARA ORDENAR AL FINAL
+            { id: "c1", text: "Toby wakes up at seven o'clock." },
+            { id: "c2", text: "Toby runs around the green garden." },
+            { id: "c3", text: "Toby plays with his small blue ball." }
+          ]
+        },
+        // ... (El resto de la base de datos se mantiene para dar volumen a tu app)
+        {
+          id: "a1_shopping",
+          title: "Buying Fresh Fruits",
+          audioTitle: "Shopping_Fresh_Fruits.mp3",
+          transcript: "Good morning! I want to buy some fresh fruit today. I need five sweet red apples, three yellow bananas, and one big orange. The total price is four dollars. Thank you very much!",
+          duration: "0:20",
+          predictionKeywords: ["sweet", "apples", "bananas", "four dollars", "train station", "computers", "football"],
+          preVocabulary: [
+            { word: "Fresh", definition: "Recently picked, caught, or prepared; not canned or frozen", matched: false },
+            { word: "Sweet", definition: "Having a taste like sugar or honey", matched: false },
+            { word: "Total", definition: "The final amount when everything is added together", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "How many yellow bananas does the speaker need?",
+              options: ["Three", "Four", "Five"],
+              correct: 0,
+              userAnswer: null
+            },
+            {
+              question: "How much is the total price?",
+              options: ["Three dollars", "Four dollars", "Five dollars"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "I want to buy some _____ fruit today.",
+            correctAnswer: "fresh",
+            hint: "New, clean, and not spoiled."
+          },
+          postChronology: [
+            { id: "c1", text: "The speaker enters the fruit market." },
+            { id: "c2", text: "The speaker chooses apples, bananas, and an orange." },
+            { id: "c3", text: "The speaker pays four dollars total." }
+          ]
+        }
+      ],
+      A2: [
+        {
+          id: "a2_breakfast",
+          title: "Preparing a Traditional Breakfast",
+          audioTitle: "Traditional_Breakfast.mp3",
+          transcript: "Welcome to my kitchen. Today, we are preparing a traditional breakfast. First, we need three fresh eggs and butter. Melt the butter in the hot pan. Gently break the eggs and cook them. Finally, add some warm bread and sweet orange juice.",
+          duration: "0:30",
+          predictionKeywords: ["kitchen", "melt", "eggs", "butter", "spaceship", "mountain", "keyboard"],
+          preVocabulary: [
+            { word: "Kitchen", definition: "A room where food is kept and prepared", matched: false },
+            { word: "Melt", definition: "To turn a solid substance into a liquid using heat", matched: false },
+            { word: "Gently", definition: "To do something with a soft, careful, or kind touch", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "How many fresh eggs are used?",
+              options: ["Two", "Three", "Four"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What should you melt in the hot pan first?",
+              options: ["Butter", "Cheese", "Chocolate"],
+              correct: 0,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Finally, add some warm bread and sweet orange _____.",
+            correctAnswer: "juice",
+            hint: "A liquid drink squeezed from fruit."
+          },
+          postChronology: [
+            { id: "c1", text: "Get three fresh eggs and some butter ready." },
+            { id: "c2", text: "Melt the butter in the hot pan." },
+            { id: "c3", text: "Break the eggs gently and cook them." }
+          ]
+        },
+        {
+          id: "a2_city",
+          title: "My Weekend Trip to London",
+          audioTitle: "Weekend_London_Trip.mp3",
+          transcript: "Last Saturday, I traveled to London by train. The journey took two hours. When I arrived, the weather was very cloudy and cold. First, I visited the famous Big Ben. Then, I ate delicious fish and chips in an old English pub.",
+          duration: "0:35",
+          predictionKeywords: ["London", "train", "cloudy", "Big Ben", "pyramids", "ocean", "desert"],
+          preVocabulary: [
+            { word: "Journey", definition: "An act of traveling from one place to another", matched: false },
+            { word: "Arrived", definition: "Reached a destination at the end of a journey", matched: false },
+            { word: "Famous", definition: "Known or recognized by many people", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "How did the speaker travel to London?",
+              options: ["By bus", "By plane", "By train"],
+              correct: 2,
+              userAnswer: null
+            },
+            {
+              question: "What was the weather like when they arrived?",
+              options: ["Sunny and hot", "Cloudy and cold", "Rainy and windy"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "The journey took _____ hours.",
+            correctAnswer: "two",
+            hint: "A number between one and three."
+          },
+          postChronology: [
+            { id: "c1", text: "Boarded a train and traveled for two hours." },
+            { id: "c2", text: "Arrived in London and walked under cloudy skies." },
+            { id: "c3", text: "Explored Big Ben and enjoyed pub food." }
+          ]
+        }
+      ],
+      B1: [
+        {
+          id: "b1_recycling",
+          title: "How the Recycling System Works",
+          audioTitle: "Recycling_Process.mp3",
+          transcript: "Recycling is a simple process with a massive impact. First, citizens separate waste into paper, glass, and plastic. Next, specialized trucks collect these materials and transport them to recycling factories. There, they wash, melt, and transform materials into entirely new items. This saves valuable natural resources.",
+          duration: "0:40",
+          predictionKeywords: ["recycling", "citizens", "factories", "resources", "wildlife", "volcano", "telescope"],
+          preVocabulary: [
+            { word: "Separating", definition: "Dividing items into different categories or groups", matched: false },
+            { word: "Factories", definition: "Buildings where goods are manufactured or assembled", matched: false },
+            { word: "Resources", definition: "Useful materials provided by nature that we use to live", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "What is the very first step citizens must take in the recycling process?",
+              options: ["Melt plastic items", "Separate their waste", "Deliver materials directly to factories"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What is the ultimate environmental benefit mentioned?",
+              options: ["It reduces local taxes", "It creates more jobs", "It saves valuable natural resources"],
+              correct: 2,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Next, specialized trucks collect these materials and _____ them to factories.",
+            correctAnswer: "transport",
+            hint: "To carry or move goods from one place to another."
+          },
+          postChronology: [
+            { id: "c1", text: "Citizens separate household waste into categories." },
+            { id: "c2", text: "Specialized trucks collect and deliver the sorted waste." },
+            { id: "c3", text: "Factories wash, melt, and mold the waste into new items." }
+          ]
+        },
+        {
+          id: "b1_internet",
+          title: "The Evolution of the Internet",
+          audioTitle: "Internet_Evolution.mp3",
+          transcript: "The internet has completely revolutionized communication. In the early days, web pages were static and connection speeds were incredibly slow. Today, high-speed fiber networks connect billions of smart devices instantly. We can stream videos, share moments, and work remotely from almost anywhere.",
+          duration: "0:45",
+          predictionKeywords: ["communication", "static", "fiber", "remotely", "dinosaur", "underwater", "medieval"],
+          preVocabulary: [
+            { word: "Revolutionized", definition: "Completely changed the way something is done", matched: false },
+            { word: "Static", definition: "Staying in one place without change or movement", matched: false },
+            { word: "Remotely", definition: "From a distance; not physically present on-site", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "What were early web pages like?",
+              options: ["Highly interactive and colorful", "Completely static with slow speeds", "Mainly used for video streaming"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What allows modern smart devices to connect instantly?",
+              options: ["High-speed fiber networks", "Short-wave radio channels", "Satellite microchips"],
+              correct: 0,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "The internet has completely revolutionized _____.",
+            correctAnswer: "communication",
+            hint: "The act of sharing or exchanging thoughts and information."
+          },
+          postChronology: [
+            { id: "c1", text: "Early internet emerged with static pages and dial-up speeds." },
+            { id: "c2", text: "Fiber networks were installed to accelerate data transfers." },
+            { id: "c3", text: "Devices of all types connected, allowing remote global work." }
+          ]
+        }
+      ],
+      B2: [
+        {
+          id: "b2_ai",
+          title: "The Rapid Rise of Artificial Intelligence",
+          audioTitle: "Rise_of_AI.mp3",
+          transcript: "Artificial Intelligence is shifting how we live. Algorithms analyze huge amounts of digital data instantly. While some experts believe AI will solve medical mysteries, critics worry about massive job losses. Undoubtedly, regulation is crucial to ensure safety.",
+          duration: "0:48",
+          predictionKeywords: ["algorithms", "critics", "regulation", "medical", "agriculture", "ancient", "microscope"],
+          preVocabulary: [
+            { word: "Algorithms", definition: "Set of logical instructions followed by software", matched: false },
+            { word: "Critics", definition: "People who express disagreement, concern, or objections", matched: false },
+            { word: "Regulation", definition: "Official rules and guidelines created by authorities", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "What can algorithms do with massive digital data sets?",
+              options: ["Store them in traditional cabinets", "Analyze them instantly", "Delete them for security reasons"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What is the primary concern of AI critics?",
+              options: ["High cost of electricity", "Massive structural job losses", "Lack of beautiful user interfaces"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Undoubtedly, _____ is crucial to ensure safety.",
+            correctAnswer: "regulation",
+            hint: "The enforcement of systematic rules by a governing body."
+          },
+          postChronology: [
+            { id: "c1", text: "Software systems are built using smart automated algorithms." },
+            { id: "c2", text: "Society debates medical solutions versus employment impacts." },
+            { id: "c3", text: "Governments design structural regulations to enforce safety limits." }
+          ]
+        },
+        {
+          id: "b2_stress",
+          title: "Understanding Modern Stress",
+          audioTitle: "Understanding_Stress.mp3",
+          transcript: "Stress is an ancient evolutionary reaction designed to protect us from immediate danger. However, in our modern world, constant notifications and busy schedules keep our bodies in a continuous state of alert. Experts suggest setting healthy digital boundaries and practicing mindfulness to reduce cortisol levels.",
+          duration: "0:52",
+          predictionKeywords: ["evolutionary", "notifications", "cortisol", "mindfulness", "geography", "chemistry", "fossil"],
+          preVocabulary: [
+            { word: "Evolutionary", definition: "Relating to the gradual development of biological organisms", matched: false },
+            { word: "Boundaries", definition: "Limits or guidelines set to protect personal space", matched: false },
+            { word: "Cortisol", definition: "The primary chemical hormone released during stress", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "Why did stress develop in humans originally?",
+              options: ["To help us organize busy schedules", "To protect us from immediate physical danger", "To keep us hooked to mobile notifications"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "How can modern people reduce their biological cortisol levels?",
+              options: ["By working longer shifts", "By setting digital boundaries and mindfulness", "By avoiding biological evolution"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Stress is an ancient _____ reaction designed to protect us.",
+            correctAnswer: "evolutionary",
+            hint: "Relating to survival developments over millions of years."
+          },
+          postChronology: [
+            { id: "c1", text: "Stress developed as a physical biological protection mechanic." },
+            { id: "c2", text: "Modern life replaced physical beasts with continuous digital pings." },
+            { id: "c3", text: "People set boundaries to intentionally calm physical systems." }
+          ]
+        }
+      ],
+      C1: [
+        {
+          id: "c1_dystopia",
+          title: "The Architectural Language of Dystopia",
+          audioTitle: "Dystopian_Architecture.mp3",
+          transcript: "Dystopian architecture often relies on imposing brutalist structures. Towering concrete walls block natural light, fostering a sense of isolation and complete control. These massive buildings reflect a society where the individual is suppressed under administrative weight.",
+          duration: "0:55",
+          predictionKeywords: ["imposing", "brutalist", "suppressed", "concrete", "jungle", "gardening", "symphony"],
+          preVocabulary: [
+            { word: "Imposing", definition: "Grand, impressive, or intimidating in appearance or size", matched: false },
+            { word: "Brutalist", definition: "An architectural style featuring raw, heavy concrete structures", matched: false },
+            { word: "Suppressed", definition: "Controlled or put down by authority, losing freedom", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "What is the consequence of brutalist towering concrete walls?",
+              options: ["They protect cities from wild storms", "They block natural light and foster isolation", "They encourage creative public artwork"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What does the architecture symbolise regarding the citizens?",
+              options: ["Their artistic freedom", "Their suppression under administrative weight", "Their superior knowledge of physical science"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Towering concrete walls block natural light, fostering a sense of _____.",
+            correctAnswer: "isolation",
+            hint: "The state of feeling completely alone or separated."
+          },
+          postChronology: [
+            { id: "c1", text: "Architects erect raw, giant brutalist concrete slabs." },
+            { id: "c2", text: "Natural sunlight is blocked, creating dark shadows below." },
+            { id: "c3", text: "Human individuality is visually crushed by massive administrative designs." }
+          ]
+        },
+        {
+          id: "c1_remote_work",
+          title: "Socio-Economic Impacts of Remote Work",
+          audioTitle: "Remote_Work_Impact.mp3",
+          transcript: "The transition to remote work has significantly decentralized the modern corporate structure. While companies enjoy diminished overhead costs and access to global talent, urban economies face unprecedented declines in retail and commercial real estate value. This shift calls for a reinvention of metropolitan spaces.",
+          duration: "1:02",
+          predictionKeywords: ["decentralized", "diminished", "unprecedented", "real estate", "astronomy", "museums", "marine"],
+          preVocabulary: [
+            { word: "Decentralized", definition: "Distributed administrative power away from a central hub", matched: false },
+            { word: "Overhead", definition: "Regular business operating expenses like rent and utility bills", matched: false },
+            { word: "Unprecedented", definition: "Never having happened or existed before in history", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "How has remote work affected modern corporate structures?",
+              options: ["It has centralized power inside headquarters", "It has significantly decentralized them", "It has increased physical attendance rates"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What is the main negative impact on urban metropolitan centers?",
+              options: ["Higher costs of physical transit systems", "Decline in commercial real estate and retail values", "Uncontrollable increases in company overhead costs"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "While companies enjoy diminished _____ costs, urban economies suffer.",
+            correctAnswer: "overhead",
+            hint: "Business expenses not directly related to creating a product."
+          },
+          postChronology: [
+            { id: "c1", text: "Corporations shift positions from office-bound to virtual desks." },
+            { id: "c2", text: "Real estate demand in dense city centers plummets." },
+            { id: "c3", text: "City planners brainstorm methods to repurpose vacant retail structures." }
+          ]
+        }
+      ],
+      C2: [
+        {
+          id: "c2_geopolitics",
+          title: "Geopolitical Realignment in the Post-Modern Era",
+          audioTitle: "Geopolitics_Realignment.mp3",
+          transcript: "The contemporary landscape is defined by fluid multilateral alignments. Traditional alliances are dissolving in favor of transactional, short-term partnerships. In this volatile space, nation-states must constantly re-evaluate economic borders and cyber-security architectures.",
+          duration: "1:10",
+          predictionKeywords: ["multilateral", "volatile", "dissolving", "cyber-security", "renaissance", "chemistry", "theatre"],
+          preVocabulary: [
+            { word: "Multilateral", definition: "Involving multiple countries, organizations, or parties", matched: false },
+            { word: "Volatile", definition: "Highly unstable, unpredictable, and prone to rapid change", matched: false },
+            { word: "Dissolving", definition: "Disappearing, breaking apart, or fading away", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "What model is replacing old, steady international alliances?",
+              options: ["Transactional, short-term partnerships", "Strict isolated environmental blocks", "Unilateral global trade systems"],
+              correct: 0,
+              userAnswer: null
+            },
+            {
+              question: "Which areas must nation-states rapidly adjust to protect themselves?",
+              options: ["Agricultural tools and crop yields", "Cyber-security architectures and economic borders", "Folk arts and historical literature"],
+              correct: 1,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Traditional alliances are dissolving in favor of _____ partnerships.",
+            correctAnswer: "transactional",
+            hint: "Based on exchange or mutual business convenience."
+          },
+          postChronology: [
+            { id: "c1", text: "Historical multi-decade treaty alliances lose their weight." },
+            { id: "c2", text: "Pragmatic, immediate benefit-focused partnerships arise instead." },
+            { id: "c3", text: "Governments fortify virtual firewalls and re-verify global borders." }
+          ]
+        },
+        {
+          id: "c2_quantum",
+          title: "The Edge of Quantum Supremacy",
+          audioTitle: "Quantum_Supremacy.mp3",
+          transcript: "Quantum supremacy represents a paradigm shift in processing capability. By exploiting subatomic phenomena like superposition and entanglement, quantum computers execute calculations that would take classical supercomputers millennia to resolve. The cryptographic implications are both staggering and deeply unsettling.",
+          duration: "1:15",
+          predictionKeywords: ["supremacy", "superposition", "entanglement", "cryptographic", "sculpture", "railroad", "cooking"],
+          preVocabulary: [
+            { word: "Paradigm", definition: "A typical pattern, model, or conceptual framework of something", matched: false },
+            { word: "Entanglement", definition: "A quantum state where particles link actions regardless of distance", matched: false },
+            { word: "Staggering", definition: "Deeply astonishing, shocking, or overwhelming to grasp", matched: false }
+          ],
+          whileQuestions: [
+            {
+              question: "What physical mechanism allows quantum processors to outperform supercomputers?",
+              options: ["Microscopic optical laser cooling cells", "Subatomic superposition and entanglement", "Traditional binary silicon transistor systems"],
+              correct: 1,
+              userAnswer: null
+            },
+            {
+              question: "What area is described as both staggering and unsettling in its implications?",
+              options: ["High-speed fiber data links", "Cryptographic security", "Subway planning algorithms"],
+              correct: 0,
+              userAnswer: null
+            }
+          ],
+          dictationGapFill: {
+            text: "Quantum supremacy represents a _____ shift in processing capability.",
+            correctAnswer: "paradigm",
+            hint: "A fundamental change in approach or underlying assumptions."
+          },
+          postChronology: [
+            { id: "c1", text: "Scientists manipulate isolated subatomic particles inside cold chambers." },
+            { id: "c2", text: "Complex mathematical calculations resolve in fractions of seconds." },
+            { id: "c3", text: "Global financial security models prepare for potential code breaches." }
+          ]
+        }
+      ]
+    };
+
+    const TEXT_TYPES = [
+      {
+        id: 'informative',
+        name: 'Informative Text',
+        badge: 'TO EXPLAIN',
+        purpose: 'To educate, instruct, define, or explain factual subjects using objective logic and references.',
+        indicators: ['Statistics & dates', 'Neutral & formal voice', 'Scientific or technical terms', 'Logically ordered steps'],
+        snippet: '"Water is a chemical compound consisting of two hydrogen atoms bound to a single oxygen atom. Covering approximately 71% of Earth\'s crust, it is vital to all known forms of biological life."'
+      },
+      {
+        id: 'descriptive',
+        name: 'Descriptive Text',
+        badge: 'TO PAINT WITH WORDS',
+        purpose: 'To build a rich sensory image in the reader\'s head, focusing on details of touch, sight, taste, sound, or scent.',
+        indicators: ['Vivid & descriptive adjectives', 'Sensory language', 'Similes & metaphors', 'Deep immersion in details'],
+        snippet: '"The crimson sun dipped beneath the jagged edge of the horizon, casting amber rays that warmed the salty sea breeze and glazed the damp, sparkling sand."'
+      },
+      {
+        id: 'narrative',
+        name: 'Narrative Text',
+        badge: 'TO TELL A STORY',
+        purpose: 'To recount a sequence of real or fictional events, featuring characters, plot, setting, and chronological action.',
+        indicators: ['Dynamic action verbs', 'Dialogue & direct speech', 'Chronological time signals', 'Conflict & climax'],
+        snippet: '"She unlocked the creaky oak door and gasped. There sat her lost cat, purring and holding a small envelope in its collar. Slowly, she reached down to open it."'
+      },
+      {
+        id: 'persuasive',
+        name: 'Persuasive Text',
+        badge: 'TO CONVINCE',
+        purpose: 'To sway the reader\'s beliefs, opinions, or behaviors to align with the author\'s argument or call to action.',
+        indicators: ['Direct calls to action', 'Rhetorical questions', 'Strong & emotive verbs', 'Logical bias or opinions'],
+        snippet: '"Our planet is choked with plastic waste. We must act immediately to ban single-use bottles! Sign our petition today to make a stand for tomorrow."'
+      }
+    ];
+
+    const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+    function App() {
+      // --- STATE SYSTEM ---
+      const [activeTab, setActiveTab] = useState('listening_lab'); 
+      const [level, setLevel] = useState('A1'); // Changed default to A1 so your lesson is seen first
+      const [selectedLessonIdx, setSelectedLessonIdx] = useState(0);
+      const [listeningStep, setListeningStep] = useState('pre'); 
+      const [focusMode, setFocusMode] = useState(false); 
+
+      // --- AUDIO CONTROLS ---
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [playbackRate, setPlaybackRate] = useState(1.0);
+      const [showTranscript, setShowTranscript] = useState(false);
+
+      // --- BEFORE LISTENING (PRE) ACTIVITIES ---
+      const [vocabMatches, setVocabMatches] = useState([]);
+      const [selectedWord, setSelectedWord] = useState(null);
+      const [selectedDef, setSelectedDef] = useState(null);
+      const [predictionSelection, setPredictionSelection] = useState({}); 
+      const [showPredictionFeedback, setShowPredictionFeedback] = useState(false);
+
+      // --- WHILE LISTENING ACTIVITIES ---
+      const [listeningQuestions, setListeningQuestions] = useState([]);
+      const [quizSubmitted, setQuizSubmitted] = useState(false);
+      const [dictationValue, setDictationValue] = useState("");
+      const [dictationChecked, setDictationChecked] = useState(false);
+      const [dictationIsCorrect, setDictationIsCorrect] = useState(false);
+
+      // --- AFTER LISTENING (POST) ACTIVITIES ---
+      const [scrambledEvents, setScrambledEvents] = useState([]);
+      const [scrambleComplete, setScrambleComplete] = useState(false);
+      const [chronologyChecked, setChronologyChecked] = useState(false);
+      const [chronologyScore, setChronologyScore] = useState(0);
+      const [chatMessages, setChatMessages] = useState([]);
+      const [userQuery, setUserQuery] = useState("");
+      const [isChatLoading, setIsChatLoading] = useState(false);
+
+      const [practiceHistory, setPracticeHistory] = useState([
+        {
+          id: "h_1",
+          date: "2 hours ago",
+          lessonTitle: "Preparing a Traditional Breakfast",
+          level: "A2",
+          activitiesPassed: ["Vocab Matcher", "Aural Quiz", "Gap Fill Dictation"],
+          comprehensionGrade: "100%"
+        }
+      ]);
+
+      // --- AUDIO SYNTHESIZER FOR SOUND FEEDBACK ---
+      const playSoundEffect = (type) => {
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          if (type === 'correct') {
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(600, audioCtx.currentTime); 
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+          } else {
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(200, audioCtx.currentTime); 
+            oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+          }
+          
+          gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          oscillator.start();
+          
+          setTimeout(() => { 
+            oscillator.stop(); 
+            audioCtx.close(); 
+          }, 300);
+        } catch(e) {
+          console.log("Audio API no soportada", e);
+        }
+      };
+
+      const activeLesson = LISTENING_DATABASE[level]?.[selectedLessonIdx] || LISTENING_DATABASE[level]?.[0];
+
+      useEffect(() => {
+        resetAndLoadLesson();
+      }, [level, selectedLessonIdx]);
+
+      const resetAndLoadLesson = () => {
+        if (!activeLesson) return;
+        window.speechSynthesis?.cancel();
+        setIsPlaying(false);
+        setShowTranscript(false);
+
+        const vocab = activeLesson.preVocabulary.map((v, i) => ({ ...v, id: i, matched: false }));
+        setVocabMatches(vocab);
+        setSelectedWord(null);
+        setSelectedDef(null);
+        setPredictionSelection({});
+        setShowPredictionFeedback(false);
+
+        const questions = activeLesson.whileQuestions.map(q => ({ ...q, userAnswer: null }));
+        setListeningQuestions(questions);
+        setQuizSubmitted(false);
+
+        setDictationValue("");
+        setDictationChecked(false);
+        setDictationIsCorrect(false);
+
+        const scrambled = [...activeLesson.postChronology]
+          .map(item => ({ ...item, currentPosition: Math.random() }))
+          .sort((a, b) => a.currentPosition - b.currentPosition);
+        setScrambledEvents(scrambled);
+        setChronologyChecked(false);
+        setScrambleComplete(false);
+
+        setChatMessages([
+          {
+            sender: "coach",
+            text: `Hello! I am your Cambridge Listening Coach. I've read the transcript of "${activeLesson.title}". Ask me any questions you have about its terms, grammar, or idioms! `
+          }
+        ]);
+
+        setListeningStep('pre');
+      };
+
+      // --- PLAY AUDIO ---
+      const playAudio = () => {
+        if (!activeLesson) return;
+        if (isPlaying) {
+          window.speechSynthesis?.pause();
+          setIsPlaying(false);
+        } else {
+          if (window.speechSynthesis?.paused) {
+            window.speechSynthesis.resume();
+            setIsPlaying(true);
+          } else {
+            window.speechSynthesis?.cancel();
+            const utterance = new SpeechSynthesisUtterance(activeLesson.transcript);
+            utterance.lang = 'en-US';
+            utterance.rate = playbackRate;
+            utterance.onend = () => setIsPlaying(false);
+            utterance.onerror = () => setIsPlaying(false);
+            window.speechSynthesis.speak(utterance);
+            setIsPlaying(true);
+          }
+        }
+      };
+
+      const stopAudio = () => {
+        window.speechSynthesis?.cancel();
+        setIsPlaying(false);
+      };
+
+      // --- STAGE 1 LOGIC ---
+      const handleSelectWord = (wordItem) => {
+        if (selectedDef) evaluateVocabularyPair(wordItem, selectedDef);
+        else setSelectedWord(wordItem);
+      };
+
+      const handleSelectDef = (defItem) => {
+        if (selectedWord) evaluateVocabularyPair(selectedWord, defItem);
+        else setSelectedDef(defItem);
+      };
+
+      const evaluateVocabularyPair = (wordObj, defObj) => {
+        if (wordObj.definition === defObj.definition) {
+          playSoundEffect('correct'); 
+          setVocabMatches(prev => prev.map(item => {
+            if (item.word === wordObj.word) return { ...item, matched: true };
+            return item;
+          }));
+        } else {
+          playSoundEffect('error'); 
+        }
+        setSelectedWord(null);
+        setSelectedDef(null);
+      };
+
+      const isPreVocabComplete = () => {
+        return vocabMatches.length > 0 && vocabMatches.every(v => v.matched);
+      };
+
+      const togglePredictionKeyword = (word) => {
+        if (showPredictionFeedback) return;
+        setPredictionSelection(prev => ({
+          ...prev,
+          [word]: !prev[word]
+        }));
+      };
+
+      const checkPredictions = () => {
+        setShowPredictionFeedback(true);
+        let hasErrors = false;
+        activeLesson.predictionKeywords.forEach(word => {
+          const isSelected = !!predictionSelection[word];
+          const isReal = activeLesson.transcript.toLowerCase().includes(word.toLowerCase());
+          if ((isSelected && !isReal) || (!isSelected && isReal)) hasErrors = true;
+        });
+        
+        if (hasErrors) playSoundEffect('error');
+        else playSoundEffect('correct');
+      };
+
+      const isBeforeStagePerfect = () => {
+        return isPreVocabComplete() && showPredictionFeedback;
+      };
+
+      // --- STAGE 2 LOGIC ---
+      const setQuestionAnswer = (qIdx, optIdx) => {
+        if (quizSubmitted) return;
+        const updated = [...listeningQuestions];
+        updated[qIdx].userAnswer = optIdx;
+        setListeningQuestions(updated);
+      };
+
+      const checkQuizScores = () => {
+        if (listeningQuestions.some(q => q.userAnswer === null)) return;
+        setQuizSubmitted(true);
+        const correctCount = getQuizCorrectCount();
+        if (correctCount === listeningQuestions.length) playSoundEffect('correct');
+        else playSoundEffect('error');
+      };
+
+      const getQuizCorrectCount = () => {
+        return listeningQuestions.reduce((acc, curr) => curr.userAnswer === curr.correct ? acc + 1 : acc, 0);
+      };
+
+      const handleCheckDictation = () => {
+        const isCorrect = dictationValue.trim().toLowerCase() === activeLesson.dictationGapFill.correctAnswer.toLowerCase();
+        setDictationIsCorrect(isCorrect);
+        setDictationChecked(true);
+        if(isCorrect) playSoundEffect('correct');
+        else playSoundEffect('error');
+      };
+
+      const isWhileStagePerfect = () => {
+        return quizSubmitted && dictationChecked;
+      };
+
+      // --- STAGE 3 LOGIC ---
+      const moveScrambledItem = (index, direction) => {
+        if (chronologyChecked) return;
+        const updated = [...scrambledEvents];
+        if (direction === 'up' && index > 0) {
+          const temp = updated[index];
+          updated[index] = updated[index - 1];
+          updated[index - 1] = temp;
+        } else if (direction === 'down' && index < updated.length - 1) {
+          const temp = updated[index];
+          updated[index] = updated[index + 1];
+          updated[index + 1] = temp;
+        }
+        setScrambledEvents(updated);
+      };
+
+      const verifyChronologyOrder = () => {
+        let matches = 0;
+        scrambledEvents.forEach((item, index) => {
+          if (item.id === activeLesson.postChronology[index].id) matches++;
+        });
+        setChronologyScore(matches);
+        setChronologyChecked(true);
+        setScrambleComplete(matches === scrambledEvents.length);
+        
+        if (matches === scrambledEvents.length) playSoundEffect('correct');
+        else playSoundEffect('error');
+
+        if(matches === scrambledEvents.length){
+             const completedRecord = {
+              id: "h_" + Date.now(),
+              date: "Just now",
+              lessonTitle: activeLesson.title,
+              level: level,
+              activitiesPassed: ["Vocabulary Matcher", "Comprehension Quiz", "Gap Dictation", "Timeline Scrambler"],
+              comprehensionGrade: `${Math.round((matches / scrambledEvents.length) * 100)}%`
+            };
+            setPracticeHistory(prev => [completedRecord, ...prev]);
+        }
+      };
+
+      const sendChatMessage = async () => {
+        if (userQuery.trim() === "") return;
+        const messagePayload = { sender: "user", text: userQuery };
+        setChatMessages(prev => [...prev, messagePayload]);
+        setUserQuery("");
+        setIsChatLoading(true);
+
+        const apiKey = ""; 
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        const systemPrompt = `You are a Cambridge English Listening Coach. Student finished lesson on "${activeLesson.title}". Transcript: "${activeLesson.transcript}". Answer strictly in English.`;
+
+        const payload = {
+          contents: [{ parts: [{ text: userQuery }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        };
+
+        const fetchWithRetry = async (retries = 5, delay = 1000) => {
+          try {
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error('API limits');
+            const data = await response.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response found.";
+          } catch (err) {
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return fetchWithRetry(retries - 1, delay * 2);
+            }
+            throw err;
+          }
+        };
+
+        try {
+          const answer = await fetchWithRetry();
+          setChatMessages(prev => [...prev, { sender: "coach", text: answer }]);
+        } catch (err) {
+          setChatMessages(prev => [...prev, { sender: "coach", text: "Network error, please try again." }]);
+        } finally {
+          setIsChatLoading(false);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row">
+          {!focusMode && (
+            <aside className="w-full md:w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between shrink-0">
+              <div>
+                <div className="p-6 border-b border-slate-800/80 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                    <Icon name="graduation-cap" size={22} />
+                  </div>
+                  <div>
+                    <h1 className="font-extrabold text-lg leading-none text-white tracking-wide">AuralLab</h1>
+                    <p className="text-[9px] text-slate-400 font-semibold tracking-widest mt-1">CAMBRIDGE LISTENING</p>
+                  </div>
+                </div>
+                
+                <div className="mx-4 my-6 p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+                    <Icon name="fire" size={20} className="text-amber-500" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Streak Score</div>
+                    <div className="text-sm font-bold text-white">5 Active Days</div>
+                  </div>
+                </div>
+
+                <nav className="px-4 space-y-1.5 mt-6">
+                  <button onClick={() => { setActiveTab('listening_lab'); stopAudio(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'listening_lab' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/15' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'}`}>
+                    <Icon name="volume-high" size={18} /> Aural Listening Lab
+                  </button>
+                  <button onClick={() => { setActiveTab('guides'); stopAudio(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'guides' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/15' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'}`}>
+                    <Icon name="book-open" size={18} /> Text Style Guides
+                  </button>
+                  <button onClick={() => { setActiveTab('history'); stopAudio(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/15' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'}`}>
+                    <Icon name="clock-rotate-left" size={18} /> Aural Performance Logs
+                  </button>
+                </nav>
+              </div>
+              <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">AuralLab Studio v4.0</div>
+            </aside>
+          )}
+
+          <div className="flex-1 flex flex-col bg-slate-900 min-h-screen overflow-y-auto">
+            {!focusMode && (
+              <header className="h-16 border-b border-slate-800 bg-slate-950/40 backdrop-blur-md px-8 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-widest text-indigo-400 font-bold bg-indigo-500/10 px-2.5 py-1 rounded">Active Workspace</span>
+                  <h2 className="text-sm font-semibold text-slate-300">Listening Strategy & Interaction</h2>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 font-medium">CEFR Tier:</span>
+                    <select className="bg-indigo-900/40 border border-indigo-500/30 text-indigo-300 text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none" value={level} onChange={(e) => { setLevel(e.target.value); setSelectedLessonIdx(0); }}>
+                      {CEFR_LEVELS.map(lvl => <option key={lvl} value={lvl} className="bg-slate-950 text-white">{lvl}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 font-medium">Lesson:</span>
+                    <select className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none" value={selectedLessonIdx} onChange={(e) => setSelectedLessonIdx(Number(e.target.value))}>
+                      {LISTENING_DATABASE[level]?.map((less, idx) => <option key={idx} value={idx}>{less.title}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </header>
+            )}
+
+            <div className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
+              {activeTab === 'listening_lab' && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-950/40 border border-slate-800 p-6 rounded-3xl">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs uppercase tracking-widest text-indigo-400 font-bold">Aural Training Platform</span>
+                        <span className="text-[10px] bg-indigo-600/20 text-indigo-300 border border-indigo-600/30 font-bold px-2 py-0.5 rounded-full">{level} Lesson</span>
+                      </div>
+                      <h3 className="text-2xl font-extrabold text-white mt-1">"{activeLesson?.title}"</h3>
+                      <p className="text-xs text-slate-500 mt-1">Audio Source: {activeLesson?.audioTitle}</p>
+                    </div>
+                    <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800">
+                      {[{ key: 'pre', label: '1. Before' }, { key: 'while', label: '2. While' }, { key: 'post', label: '3. After' }].map(step => (
+                        <button key={step.key} onClick={() => setListeningStep(step.key)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${listeningStep === step.key ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>
+                          {step.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* === PRE LISTENING === */}
+                  {listeningStep === 'pre' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                      <div className="lg:col-span-8 space-y-6">
+                        <div className="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 space-y-4">
+                          <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                            <h4 className="text-base font-bold text-white flex items-center gap-2">
+                              <Icon name="circle-check" size={18} className="text-indigo-400" /> Activity 1: Vocabulary Matcher
+                            </h4>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div className="space-y-2">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Target Word</span>
+                              {vocabMatches.map(v => (
+                                <button key={v.word} onClick={() => !v.matched && handleSelectWord(v)} disabled={v.matched} className={`w-full p-3.5 rounded-xl text-left border text-xs font-semibold transition-all flex justify-between items-center ${v.matched ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400/60 line-through' : selectedWord?.word === v.word ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/5' : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'}`}>
+                                  {v.word} {v.matched && <Icon name="circle-check" size={14} className="text-emerald-400" />}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="space-y-2">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Context Definition</span>
+                              {vocabMatches.map(v => (
+                                <button key={v.definition} onClick={() => !v.matched && handleSelectDef(v)} disabled={v.matched} className={`w-full p-3.5 rounded-xl text-left border text-xs font-semibold transition-all flex justify-between items-center ${v.matched ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400/60 line-through' : selectedDef?.definition === v.definition ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/5' : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'}`}>
+                                  <span className="truncate max-w-[280px]">{v.definition}</span> {v.matched && <Icon name="circle-check" size={14} className="text-emerald-400" />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 space-y-4">
+                          <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                            <h4 className="text-base font-bold text-white flex items-center gap-2">
+                              <Icon name="bullseye" size={18} className="text-indigo-400" /> Activity 2: Keyword Predictor
+                            </h4>
+                          </div>
+                          <p className="text-xs text-slate-400 leading-relaxed">Read the title <strong>"{activeLesson.title}"</strong>. Which words do you predict are spoken?</p>
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {activeLesson.predictionKeywords.map((word) => {
+                              const isSelected = !!predictionSelection[word];
+                              const isReal = activeLesson.transcript.toLowerCase().includes(word.toLowerCase());
+                              let styleClasses = "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700";
+                              if (showPredictionFeedback) {
+                                if (isReal && isSelected) styleClasses = "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 font-bold";
+                                else if (!isReal && isSelected) styleClasses = "bg-rose-500/10 border-rose-500/40 text-rose-400 line-through";
+                                else if (isReal && !isSelected) styleClasses = "bg-indigo-500/5 border-indigo-500/20 text-slate-500";
+                              } else if (isSelected) styleClasses = "bg-indigo-600 text-white border-indigo-500";
+                              
+                              return <button key={word} onClick={() => togglePredictionKeyword(word)} disabled={showPredictionFeedback} className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${styleClasses}`}>{word}</button>;
+                            })}
+                          </div>
+                          <div className="flex justify-end pt-3 border-t border-slate-850">
+                            {!showPredictionFeedback ? (
+                              <button onClick={checkPredictions} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-4 rounded-xl transition-all">Verify Predictions</button>
+                            ) : (
+                              <button onClick={() => { setPredictionSelection({}); setShowPredictionFeedback(false); }} className="text-slate-400 hover:text-white text-xs font-bold flex items-center gap-1"><Icon name="arrow-rotate-left" size={12} /> Retry Prediction</button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="lg:col-span-4 bg-slate-950/40 border border-slate-800 rounded-3xl p-6">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Pre-Listening</h4>
+                        <p className="text-xs text-slate-500 mt-2">Aural acquisition begins before pressing play. Brainstorming establishes critical neural scaffolding.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* === WHILE LISTENING === */}
+                  {listeningStep === 'while' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                      <div className="lg:col-span-8 space-y-6">
+                        
+                        <div className="bg-slate-950/60 border border-slate-800 p-6 rounded-3xl space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest"><Icon name="volume-high" size={14} className="inline mr-1" /> Virtual Audio Deck</span>
+                            <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                              <span className="text-[10px] text-slate-500 px-2 font-bold">Speed</span>
+                              {[0.8, 1.0, 1.2].map(r => <button key={r} onClick={() => setPlaybackRate(r)} className={`px-2 py-0.5 text-xs font-bold rounded ${playbackRate === r ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>{r}x</button>)}
+                            </div>
+                          </div>
+                          <div className="bg-slate-900 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-850">
+                            <div className="flex items-center gap-4">
+                              <button onClick={playAudio} className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all">{isPlaying ? <Icon name="pause" size={24} /> : <Icon name="play" size={24} className="ml-1" />}</button>
+                              <div><span className="text-sm font-bold block text-slate-200">Play Listening Fragment</span></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-3xl space-y-6">
+                          <h4 className="text-base font-bold text-white"><Icon name="circle-question" size={18} className="inline mr-2 text-indigo-400" />Activity 1: Selective Detail Check</h4>
+                          <div className="space-y-6">
+                            {listeningQuestions.map((q, qIdx) => (
+                              <div key={qIdx} className="space-y-2.5">
+                                <span className="text-sm font-bold text-slate-300 block">{qIdx + 1}. {q.question}</span>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                  {q.options.map((opt, optIdx) => {
+                                    const isSelected = q.userAnswer === optIdx;
+                                    const isCorrect = q.correct === optIdx;
+                                    let btnStyle = "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700";
+                                    if (quizSubmitted) {
+                                      if (isCorrect) btnStyle = "bg-emerald-500/15 border-emerald-500/50 text-emerald-400 font-bold";
+                                      else if (isSelected && !isCorrect) btnStyle = "bg-rose-500/15 border-rose-500/50 text-rose-400 line-through";
+                                      else btnStyle = "bg-slate-900 border-slate-850 text-slate-600 opacity-60";
+                                    } else if (isSelected) btnStyle = "bg-indigo-600/20 border-indigo-500 text-indigo-400 font-bold";
+                                    return <button key={optIdx} onClick={() => setQuestionAnswer(qIdx, optIdx)} disabled={quizSubmitted} className={`p-3 text-xs font-semibold rounded-xl text-left border transition-all ${btnStyle}`}>{opt}</button>;
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {!quizSubmitted ? (
+                            <button onClick={checkQuizScores} disabled={listeningQuestions.some(q => q.userAnswer === null)} className="bg-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl text-xs">Submit Quiz</button>
+                          ) : (
+                            <span className="text-xs text-slate-400">Score: <strong className="text-indigo-400">{getQuizCorrectCount()} / {listeningQuestions.length}</strong></span>
+                          )}
+                        </div>
+
+                        <div className="bg-slate-950/40 border border-slate-800 p-6 rounded-3xl space-y-4">
+                          <h4 className="text-base font-bold text-white"><Icon name="bookmark" size={18} className="inline mr-2 text-indigo-400" />Activity 2: Gap-Fill Dictation</h4>
+                          <div className="bg-slate-900 p-5 rounded-2xl border border-slate-850 space-y-4">
+                            <p className="text-sm italic text-slate-200">"{activeLesson.dictationGapFill.text}"</p>
+                            <div className="flex gap-2">
+                              <input type="text" placeholder="Type missing word..." className="bg-slate-950 border border-slate-800 focus:border-indigo-500 outline-none rounded-xl text-xs px-4 py-2 flex-1 text-slate-200" value={dictationValue} onChange={(e) => setDictationValue(e.target.value)} disabled={dictationChecked}/>
+                              {!dictationChecked ? (
+                                <button onClick={handleCheckDictation} className="bg-indigo-600 text-white font-bold py-2 px-6 rounded-xl text-xs">Check</button>
+                              ) : (
+                                <button onClick={() => { setDictationValue(""); setDictationChecked(false); setDictationIsCorrect(false); }} className="bg-slate-800 text-slate-300 rounded-xl text-xs font-bold px-6">Reset</button>
+                              )}
+                            </div>
+                            {dictationChecked && (
+                              <div className={`p-3 rounded-xl text-xs font-semibold ${dictationIsCorrect ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                {dictationIsCorrect ? "Excellent spelling!" : `Incorrect. The correct word was "${activeLesson.dictationGapFill.correctAnswer}".`}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-4 bg-slate-950/40 border border-slate-800 rounded-3xl p-6">
+                        <h4 className="text-xs font-bold uppercase text-slate-400">While-Listening</h4>
+                        <p className="text-xs text-slate-500 mt-2">This phase evaluates active memory and isolates specific terms to test deep comprehension.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* === AFTER LISTENING === */}
+                  {listeningStep === 'post' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                      <div className="lg:col-span-8 space-y-6">
+                        
+                        <div className="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 space-y-4">
+                          <h4 className="text-base font-bold text-white"><Icon name="list-ol" size={18} className="inline mr-2 text-indigo-400" />Activity 1: Chronology Timeline</h4>
+                          <div className="space-y-2 pt-2">
+                            {scrambledEvents.map((item, index) => {
+                              const originalIdx = activeLesson.postChronology.findIndex(x => x.id === item.id);
+                              const isCorrectSpot = originalIdx === index;
+                              let borderClass = chronologyChecked ? (isCorrectSpot ? "border-emerald-500/40 bg-emerald-950/15 text-emerald-300" : "border-rose-500/40 bg-rose-950/15 text-rose-300") : "border-slate-800 bg-slate-900";
+                              return (
+                                <div key={item.id} className={`p-4 rounded-xl border flex justify-between gap-4 text-xs font-semibold ${borderClass}`}>
+                                  <div className="flex gap-3"><span className="w-6 h-6 rounded-lg bg-slate-950 flex items-center justify-center border border-slate-800">{index + 1}</span><span>{item.text}</span></div>
+                                  <div className="flex gap-1.5">
+                                    <button onClick={() => moveScrambledItem(index, 'up')} disabled={index === 0 || chronologyChecked} className="w-7 h-7 bg-slate-950 rounded-lg text-slate-400 border border-slate-800">▲</button>
+                                    <button onClick={() => moveScrambledItem(index, 'down')} disabled={index === scrambledEvents.length - 1 || chronologyChecked} className="w-7 h-7 bg-slate-950 rounded-lg text-slate-400 border border-slate-800">▼</button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex justify-end pt-4">
+                            <button onClick={verifyChronologyOrder} className="bg-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl text-xs">Verify Sequence</button>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 space-y-4">
+                          <h4 className="text-base font-bold text-white"><Icon name="message" size={18} className="inline mr-2 text-indigo-400" />Activity 2: Conversation with Coach</h4>
+                          <div className="bg-slate-900 border border-slate-850 rounded-2xl h-[280px] overflow-y-auto p-4 flex flex-col gap-3">
+                            {chatMessages.map((msg, idx) => (
+                              <div key={idx} className={`p-3.5 rounded-2xl text-xs max-w-[85%] ${msg.sender === "coach" ? 'bg-slate-950 border border-slate-800 text-slate-300 self-start' : 'bg-indigo-600 text-white self-end'}`}>
+                                {msg.text}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <input type="text" placeholder="Ask about vocabulary or grammar..." className="bg-slate-950 border border-slate-800 outline-none rounded-xl text-xs px-4 py-3 flex-1 text-slate-200" value={userQuery} onChange={(e) => setUserQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()} disabled={isChatLoading}/>
+                            <button onClick={sendChatMessage} disabled={isChatLoading || userQuery.trim() === ""} className="bg-indigo-600 text-white font-bold px-6 rounded-xl text-xs">Send</button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="lg:col-span-4 bg-slate-950/40 border border-slate-800 rounded-3xl p-6">
+                        <h4 className="text-xs font-bold uppercase text-slate-400">After-Listening</h4>
+                        <p className="text-xs text-slate-500 mt-2">Sorting historical events sequentially and discussing context turns short-term memory elements into long-term language structures.</p>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {activeTab === 'guides' && (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {TEXT_TYPES.map((type) => (
+                      <div key={type.id} className="bg-slate-950/40 border border-slate-800 p-6 rounded-3xl">
+                        <h4 className="text-xl font-bold text-white mb-4">{type.name}</h4>
+                        <p className="text-sm text-slate-300 mb-4">{type.purpose}</p>
+                        <ul className="text-xs text-slate-400 space-y-2">
+                          {type.indicators.map((ind, idx) => (
+                            <li key={idx}>• {ind}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'history' && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <h3 className="text-2xl font-bold text-white">Interactive Session Logs</h3>
+                  {practiceHistory.map((item) => (
+                    <div key={item.id} className="bg-slate-950/40 border border-slate-800 p-6 rounded-2xl flex justify-between">
+                      <div>
+                        <span className="text-indigo-400 text-[10px] font-bold uppercase">{item.level}</span>
+                        <h4 className="font-bold text-base text-slate-200 mt-1">"{item.lessonTitle}"</h4>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-500 block uppercase">Correct Rate</span>
+                        <span className="text-lg font-black text-indigo-400">{item.comprehensionGrade}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
